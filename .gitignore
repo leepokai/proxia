@@ -1,0 +1,58 @@
+# -----------------------------
+# GoProject .gitignore
+# -----------------------------
+
+# Binaries and build artifacts
+/gateway
+/bin/
+/build/
+/dist/
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.tmp
+
+# Logs and runtime files
+*.log
+/logs/
+/tmp/
+
+# Coverage and profiling
+coverage.out
+cover.out
+*.cover
+*.cov
+*.prof
+*.pprof
+
+# Environment files
+.env
+.env.*
+!.env.example
+!example.env
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor/IDE settings
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Caches
+.cache/
+**/.cache/
+
+# Tooling state (optional)
+.taskmaster/
+
+# Vendor (uncomment if you don't commit vendor)
+# /vendor/
+
+
