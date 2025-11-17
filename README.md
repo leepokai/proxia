@@ -17,6 +17,7 @@ Prerequisites: Go 1.22+
 ```bash
 cp example.env .env
 # Edit .env to set API_KEY (and optionally PROVIDER, PROVIDER_URL, PORT, LOG_LEVEL)
+# Note: If PROVIDER=openai and PROVIDER_URL is empty, it defaults to https://api.openai.com/v1
 ```
 
 2) Run the server
@@ -38,6 +39,11 @@ If `API_KEY` is missing, `POST /v1/chat` returns:
 {"error":{"code":401,"message":"missing API key"}}
 ```
 
+If you select an unimplemented provider (e.g. `gemini`, `claude`), the gateway returns:
+```json
+{"error":{"code":501,"message":"gemini provider not implemented"}}
+```
+
 ### Configuration (.env)
 - `PROVIDER`: `openai` (default) | `gemini` | `claude`
 - `PROVIDER_URL`: Base URL of provider.
@@ -54,6 +60,7 @@ See `example.env` for a template.
 - `GET /v1/config` → Current provider, URL, port, log level
 - `POST /v1/chat` → Forwards to configured provider and normalizes response:
   - Adds `"provider"`, ensures `"id"`, `"created"`, and default `"object":"chat.completion"`
+  - On upstream errors, returns a uniform error with the upstream HTTP status and message when available
 
 Example request:
 ```json
@@ -80,8 +87,8 @@ docker run --rm -p 8080:8080 --env-file .env goproject
 
 ### Provider status
 - `openai`: implemented
-- `gemini`: stub (not implemented yet)
-- `claude`: stub (not implemented yet)
+- `gemini`: returns HTTP 501 Not Implemented
+- `claude`: returns HTTP 501 Not Implemented
 
 ### Project structure
 ```
@@ -110,6 +117,7 @@ docker run --rm -p 8080:8080 --env-file .env goproject
 - Use `go run .` (not `go run main.go`) to compile all files in the module.
 - If you see provider errors, verify `.env` contains valid `API_KEY` and `PROVIDER_URL`.
 - Increase log detail with `LOG_LEVEL=debug`.
+- Upstream provider errors will be surfaced with the provider's HTTP status (e.g. 400/401/429) and a concise message in `{ "error": { "code": ..., "message": "..." } }`.
 
 ### License
 MIT — see `LICENSE`.

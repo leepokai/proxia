@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"goproject/handlers"
@@ -23,8 +26,15 @@ func main() {
 	logger := utils.NewLogger(cfg.LogLevel)
 	logger.Info("starting GoProject gateway...")
 
+	// Defaults
 	if cfg.Port == "" {
 		cfg.Port = "8080"
+	}
+	if cfg.Provider == "" {
+		cfg.Provider = "openai"
+	}
+	if cfg.ProviderURL == "" && cfg.Provider == "openai" {
+		cfg.ProviderURL = "https://api.openai.com/v1"
 	}
 
 	// Select provider based on config
@@ -64,11 +74,29 @@ func main() {
 		Addr:              addr,
 		Handler:           app.mux,
 		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       65 * time.Second,
+		WriteTimeout:      65 * time.Second,
+		IdleTimeout:       90 * time.Second,
 	}
 
-	logger.Infof("listening on %s", addr)
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		logger.Errorf("server error: %v", err)
-		os.Exit(1)
+	// Graceful shutdown on SIGINT/SIGTERM
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	go func() {
+		logger.Infof("listening on %s", addr)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Errorf("server error: %v", err)
+			os.Exit(1)
+		}
+	}()
+
+	<-ctx.Done()
+	logger.Info("shutting down...")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		logger.Errorf("graceful shutdown failed: %v", err)
+		_ = server.Close()
 	}
 }

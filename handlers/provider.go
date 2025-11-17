@@ -12,6 +12,18 @@ type AIProvider interface {
 	ProviderName() string
 }
 
+// NotImplementedError represents a provider that has not been implemented yet.
+type NotImplementedError struct {
+	Provider string
+}
+
+func (e *NotImplementedError) Error() string {
+	if e.Provider == "" {
+		return "provider not implemented"
+	}
+	return e.Provider + " provider not implemented"
+}
+
 // buildChatCompletionsURL constructs the chat completions endpoint accounting
 // for whether BaseURL already includes "/v1".
 func buildChatCompletionsURL(base string) string {

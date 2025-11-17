@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -85,6 +86,22 @@ func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
 
 	respBytes, err := a.provider.SendRequest(ctx, payload)
 	if err != nil {
+		// Return clearer errors depending on the failure
+		if nie, ok := err.(*handlers.NotImplementedError); ok {
+			a.logger.Warnf("provider not implemented: %s", nie.Error())
+			utils.WriteError(w, http.StatusNotImplemented, nie.Error())
+			return
+		}
+		if hse, ok := err.(*handlers.HTTPStatusError); ok {
+			// Attempt to extract a readable message from provider body
+			msg := extractProviderMessage(hse.Body)
+			if msg == "" {
+				msg = fmt.Sprintf("upstream status %d", hse.StatusCode)
+			}
+			a.logger.Warnf("upstream provider error (%d): %s", hse.StatusCode, msg)
+			utils.WriteError(w, hse.StatusCode, "provider error: "+msg)
+			return
+		}
 		a.logger.Errorf("provider error: %v", err)
 		utils.WriteError(w, http.StatusBadGateway, "failed to contact provider")
 		return
@@ -100,4 +117,33 @@ func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(normalized)
+}
+
+// extractProviderMessage tries to derive a concise error message from an upstream response body.
+func extractProviderMessage(body []byte) string {
+	var m map[string]any
+	if err := json.Unmarshal(body, &m); err == nil {
+		// Common shapes: {"error": {"message": "..."}}, {"message": "..."}
+		if errField, ok := m["error"]; ok {
+			switch e := errField.(type) {
+			case map[string]any:
+				if msg, ok := e["message"].(string); ok && msg != "" {
+					return msg
+				}
+				// anthropic-like {"error":{"type":"...","message":"..."}}
+				if msg, ok := e["error"].(string); ok && msg != "" {
+					return msg
+				}
+			case string:
+				if e != "" {
+					return e
+				}
+			}
+		}
+		if msg, ok := m["message"].(string); ok && msg != "" {
+			return msg
+		}
+	}
+	// fallback to raw body as string (may be JSON or text)
+	return string(body)
 }

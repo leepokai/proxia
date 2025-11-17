@@ -194,6 +194,7 @@ GoProject/
 --- | ---
 400 | 無效的請求格式或參數錯誤
 401 | API 金鑰無效或未設定
+501 | 選擇之 Provider 尚未實作
 502 | Provider 回傳錯誤或網路中斷
 500 | Gateway 內部錯誤
 
@@ -203,7 +204,18 @@ GoProject/
 {
   "error": {
     "code": 502,
-    "message": "Failed to contact provider: timeout"
+    "message": "provider error: timeout"
+  }
+}
+```
+
+當 Provider 為未實作狀態（如 `gemini`, `claude` 目前版本），回傳：
+
+```json
+{
+  "error": {
+    "code": 501,
+    "message": "gemini provider not implemented"
   }
 }
 ```

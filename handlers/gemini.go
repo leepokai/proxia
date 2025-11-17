@@ -15,5 +15,5 @@ type GeminiHandler struct {
 func (g *GeminiHandler) ProviderName() string { return "gemini" }
 
 func (g *GeminiHandler) SendRequest(ctx context.Context, payload []byte) ([]byte, error) {
-	return nil, errors.New("gemini handler not implemented yet")
+	return nil, &NotImplementedError{Provider: "gemini"}
 }

@@ -15,5 +15,5 @@ type ClaudeHandler struct {
 func (c *ClaudeHandler) ProviderName() string { return "claude" }
 
 func (c *ClaudeHandler) SendRequest(ctx context.Context, payload []byte) ([]byte, error) {
-	return nil, errors.New("claude handler not implemented yet")
+	return nil, &NotImplementedError{Provider: "claude"}
 }
