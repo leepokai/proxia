@@ -20,12 +20,22 @@ This project has undergone significant improvements:
 ## Quick start (backend)
 Prereqs: Go 1.22+
 
+**Optional: Start Supabase locally** (if using database-backed keys):
+```bash
+supabase start
+# This will start PostgreSQL, Auth, and other Supabase services locally
+# Save the connection details for your .env file
+```
+
 ```bash
 cp example.env .env
 # set upstream keys:
 #   OPENAI_API_KEY=...
 #   CLAUDE_API_KEY=...
-go run ./backend
+# If using Supabase, set DATABASE_URL:
+#   DATABASE_URL=postgresql://postgres:postgres@localhost:54322/postgres
+cd backend
+go run .
 ```
 
 Smoke test:
@@ -33,6 +43,8 @@ Smoke test:
 curl -s http://localhost:8080/v1/health
 curl -s http://localhost:8080/v1/config
 ```
+
+**Note**: For full setup with web dashboard and Google OAuth, see the [Web dashboard setup](#web-dashboard-mvp) section below.
 
 ### Calling /v1/chat
 
@@ -135,10 +147,15 @@ curl -X POST http://localhost:8080/v1/chat \
 - `PROVIDER` (default `openai`)
 - `PORT` (default `8080`), `LOG_LEVEL` (default `info`)
 - `DATABASE_URL` (optional Postgres/Supabase for gateway keys)
+  - For local Supabase: `postgresql://postgres:postgres@localhost:54322/postgres`
+  - Get connection string from `supabase start` output
 - `GATEWAY_DEV_KEY` (optional dev key when no DB)
 - `ENCRYPTION_KEY` (optional; needed only for DB-stored BYOK)
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (optional; for Supabase Auth Google OAuth)
 
 See `example.env` for a template.
+
+**Note**: When using Supabase locally, make sure to run `supabase start` first to initialize the local database. See the [Web dashboard setup](#web-dashboard-mvp) section for detailed instructions.
 
 ## Project Architecture
 
@@ -256,7 +273,7 @@ Tests are located in `backend/utils/tests/` as a separate package to ensure prop
 
 The web dashboard provides a user-friendly interface for managing your gateway:
 
-- **Authentication**: Supabase-based user login
+- **Authentication**: Supabase-based user login with Google OAuth support
 - **API Key Management**: Create and manage gateway API keys
   - Generate keys that work with all providers (OpenAI, Claude, etc.)
   - Set per-key rate limits
@@ -264,19 +281,90 @@ The web dashboard provides a user-friendly interface for managing your gateway:
 - **Provider Credentials (BYOK)**: Store encrypted upstream provider keys
 - **Playground**: Interactive chat interface for testing different models
 
-**Getting Started:**
+#### Setup Instructions
+
+**1. Start Local Supabase Services**
+
+First, start the local Supabase development environment:
+
+```bash
+# Install Supabase CLI if you haven't already
+# macOS: brew install supabase/tap/supabase
+# Or visit: https://supabase.com/docs/guides/cli
+
+# Start local Supabase services (PostgreSQL, Auth, Storage, etc.)
+supabase start
+```
+
+This will start:
+- PostgreSQL database on port `54322`
+- Supabase API on port `54321`
+- Supabase Studio (admin UI) on port `54323`
+- Email testing server (Inbucket) on port `54324`
+
+After starting, Supabase will display connection details. Save these for your `.env.local` file.
+
+**2. Configure Google OAuth (Optional but Recommended)**
+
+To enable Google sign-in, you need to create OAuth credentials in Google Cloud Console:
+
+1. **Go to [Google Cloud Console](https://console.cloud.google.com/)**
+2. **Create a new project** (or select an existing one)
+3. **Enable Google+ API**:
+   - Navigate to "APIs & Services" > "Library"
+   - Search for "Google+ API" and enable it
+4. **Create OAuth 2.0 Credentials**:
+   - Go to "APIs & Services" > "Credentials"
+   - Click "Create Credentials" > "OAuth client ID"
+   - Choose "Web application"
+   - Add authorized redirect URIs:
+     - `http://localhost:54321/auth/v1/callback` (for local Supabase)
+     - Your production Supabase callback URL (if deploying)
+   - Click "Create"
+   - **Save the Client ID and Client Secret**
+
+5. **Configure Supabase Auth**:
+   - Open Supabase Studio: `http://localhost:54323`
+   - Go to "Authentication" > "Providers"
+   - Enable "Google" provider
+   - Enter your Google Client ID and Client Secret
+   - Save the configuration
+
+**3. Configure Environment Variables**
+
+Create `web/.env.local` with the following:
+
+```bash
+# Supabase Configuration (from `supabase start` output)
+NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<your_anon_key_from_supabase_start>
+
+# Google OAuth (optional, if using Google sign-in)
+GOOGLE_CLIENT_ID=<your_google_client_id>
+GOOGLE_CLIENT_SECRET=<your_google_client_secret>
+```
+
+**4. Start the Web Dashboard**
+
 ```bash
 cd web
 npm install
 npm run dev
 ```
-Open `http://localhost:3000`. Configure `web/.env.local` per `web/README.md`.
 
-**Create Your First Gateway Key:**
-1. Log in via the web dashboard
+Open `http://localhost:3000` in your browser.
+
+**5. Create Your First Gateway Key**
+
+1. Log in via the web dashboard (using email/password or Google OAuth)
 2. Navigate to the Keys page
 3. Create a new API key
 4. Use this single key to access all providers (OpenAI, Claude, etc.)
+
+**Note**: The backend also needs to connect to the same Supabase database. Set `DATABASE_URL` in your backend `.env`:
+```bash
+DATABASE_URL=postgresql://postgres:postgres@localhost:54322/postgres
+```
 
 ### Build & Docker
 ```bash

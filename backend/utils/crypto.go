@@ -77,4 +77,3 @@ func EncryptString(plaintext string, secret string) (string, error) {
 	out := append(nonce, ct...)
 	return base64.StdEncoding.EncodeToString(out), nil
 }
-
